@@ -7,8 +7,6 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.hardware.usb.UsbAccessory;
-import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
@@ -33,21 +31,31 @@ import com.smartdevicelink.transport.BaseTransportConfig;
 import com.smartdevicelink.transport.MultiplexTransportConfig;
 import com.smartdevicelink.transport.TCPTransportConfig;
 
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
+import java.util.Random;
 import java.util.Vector;
 
 public class SdlService extends Service {
-
+	private JSONArray qAndA = new JSONArray();
+	private int[] scores;
+	private int playerNumber;
 	private static final String TAG 					= "SDL Service";
 
-	private static final String APP_NAME 				= "Hello Sdl";
+	private static final String APP_NAME 				= "Real Ford Fiesta";
 	private static final String APP_ID 					= "8678309";
 
 	private static final String ICON_FILENAME 			= "hello_sdl_icon.png";
-	private static final String SDL_IMAGE_FILENAME  	= "sdl_full_image.png";
+	private static final String SDL_IMAGE_FILENAME  	= "fordfiestalogo.png";
 
 	private static final String WELCOME_SHOW 			= "Welcome to HelloSDL";
-	private static final String WELCOME_SPEAK 			= "Welcome to Hello S D L";
+	private static final String WELCOME_SPEAK 			= "Welcome to Ford Real Fiesta Fiesta Fiesta Fiesta";
 
 	private static final String TEST_COMMAND_NAME 		= "Test Command";
 	private static final int TEST_COMMAND_ID 			= 1;
@@ -58,7 +66,7 @@ public class SdlService extends Service {
 	// The default port is 12345
 	// The IP is of the machine that is running SDL Core
 	private static final int TCP_PORT = 12345;
-	private static final String DEV_MACHINE_IP_ADDRESS = "192.168.1.78";
+	private static final String DEV_MACHINE_IP_ADDRESS = "10.142.168.108";
 
 	// variable to create and call functions of the SyncProxy
 	private SdlManager sdlManager = null;
@@ -143,41 +151,48 @@ public class SdlService extends Service {
 
 			// The app type to be used
 			Vector<AppHMIType> appType = new Vector<>();
-			appType.add(AppHMIType.MEDIA);
+			appType.add(AppHMIType.INFORMATION);
 
 			// The manager listener helps you know when certain events that pertain to the SDL Manager happen
 			// Here we will listen for ON_HMI_STATUS and ON_COMMAND notifications
 			SdlManagerListener listener = new SdlManagerListener() {
 				@Override
 				public void onStart() {
+					try {
+						JSONParser parser = new JSONParser();
+						qAndA = (JSONArray) parser.parse(loadJSONFromAsset());
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 					// HMI Status Listener
+
 					sdlManager.addOnRPCNotificationListener(FunctionID.ON_HMI_STATUS, new OnRPCNotificationListener() {
 						@Override
 						public void onNotified(RPCNotification notification) {
 							OnHMIStatus status = (OnHMIStatus) notification;
 							if (status.getHmiLevel() == HMILevel.HMI_FULL && ((OnHMIStatus) notification).getFirstRun()) {
-								sendCommands();
-								performWelcomeSpeak();
-								performWelcomeShow();
+//								sendCommands();
+								playerNumber = 0;
+								startFiesta();
 							}
 						}
 					});
 
 					// Menu Selected Listener
-					sdlManager.addOnRPCNotificationListener(FunctionID.ON_COMMAND, new OnRPCNotificationListener() {
-						@Override
-						public void onNotified(RPCNotification notification) {
-							OnCommand command = (OnCommand) notification;
-							Integer id = command.getCmdID();
-							if(id != null){
-								switch(id){
-									case TEST_COMMAND_ID:
-										showTest();
-										break;
-								}
-							}
-						}
-					});
+//					sdlManager.addOnRPCNotificationListener(FunctionID.ON_COMMAND, new OnRPCNotificationListener() {
+//						@Override
+//						public void onNotified(RPCNotification notification) {
+//							OnCommand command = (OnCommand) notification;
+//							Integer id = command.getCmdID();
+//							if(id != null){
+//								switch(id){
+//									case TEST_COMMAND_ID:
+//										showTest();
+//										break;
+//								}
+//							}
+//						}
+//					});
 				}
 
 				@Override
@@ -191,7 +206,7 @@ public class SdlService extends Service {
 			};
 
 			// Create App Icon, this is set in the SdlManager builder
-			SdlArtwork appIcon = new SdlArtwork(ICON_FILENAME, FileType.GRAPHIC_PNG, R.mipmap.ic_launcher, true);
+			SdlArtwork appIcon = new SdlArtwork(ICON_FILENAME, FileType.GRAPHIC_PNG, R.mipmap.fordfiestalogo, true);
 
 			// The manager builder sets options for your session
 			SdlManager.Builder builder = new SdlManager.Builder(this, APP_ID, APP_NAME, listener);
@@ -216,6 +231,186 @@ public class SdlService extends Service {
 		sdlManager.sendRPC(command);
 	}
 
+	private void clearTextFields() {
+		sdlManager.getScreenManager().setTextField1("");
+		sdlManager.getScreenManager().setTextField2("");
+		sdlManager.getScreenManager().setTextField3("");
+		sdlManager.getScreenManager().setTextField4("");
+
+	}
+
+	private void startFiesta() {
+		scores = new int[4];
+//		sdlManager.sendRPC(new Speak(TTSChunkFactory.createSimpleTTSChunks("welcome to the ford real fiesta")));
+		sdlManager.sendRPC(new Speak(TTSChunkFactory.createSimpleTTSChunks("MY BALLS IS HOT. Lick a my dick a")));
+		clearTextFields();
+		sdlManager.getScreenManager().setTextField1("Ford Real Fiesta");
+
+		try {
+			Thread.sleep(5000);
+		} catch (Exception e) {
+
+		}
+		askQuestion();
+	}
+	public String loadJSONFromAsset() {
+		String json = null;
+		try {
+			InputStream is = getAssets().open("questions.json");
+			int size = is.available();
+			byte[] buffer = new byte[size];
+			is.read(buffer);
+			is.close();
+			json = new String(buffer, "UTF-8");
+		} catch (IOException ex) {
+			ex.printStackTrace();
+			return null;
+		}
+		return json;
+	}
+	private void setAnswerCommands() {
+		final String answer1Name = "One";
+		final MenuParams params1 = new MenuParams();
+		final AddCommand command1 = new AddCommand();
+		params1.setMenuName("one");
+		command1.setCmdID(1);
+		command1.setMenuParams(params1);
+		command1.setVrCommands(Collections.singletonList(answer1Name));
+		sdlManager.sendRPC(command1);
+
+		final String answer2Name = "Two";
+		final MenuParams params2 = new MenuParams();
+		final AddCommand command2 = new AddCommand();
+		params2.setMenuName("two");
+		command2.setCmdID(2);
+		command2.setMenuParams(params2);
+		command2.setVrCommands(Collections.singletonList(answer2Name));
+		sdlManager.sendRPC(command2);
+
+		final String answer3Name = "Three";
+		final MenuParams params3 = new MenuParams();
+		final AddCommand command3 = new AddCommand();
+		params3.setMenuName("three");
+		command3.setCmdID(3);
+		command3.setMenuParams(params3);
+		command3.setVrCommands(Collections.singletonList(answer3Name));
+		sdlManager.sendRPC(command3);
+
+		final String answer4Name = "Four";
+		final MenuParams params4 = new MenuParams();
+		final AddCommand command4 = new AddCommand();
+		params4.setMenuName("four");
+		command4.setCmdID(4);
+		command4.setMenuParams(params4);
+		command4.setVrCommands(Collections.singletonList(answer4Name));
+		sdlManager.sendRPC(command4);
+
+	}
+
+	private OnRPCNotificationListener setAnswerListeners(final int answer, final int player) {
+		OnRPCNotificationListener listener = new OnRPCNotificationListener() {
+			@Override
+			public void onNotified(RPCNotification notification) {
+				System.out.println("AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHh");
+				System.out.println(answer);
+				System.out.println("AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHh");
+				System.out.println("AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHh");
+				System.out.println("AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHh");
+				System.out.println("AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHh");
+				System.out.println("AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHh");
+				OnCommand command = (OnCommand) notification;
+				Integer id = command.getCmdID();
+				System.out.println(id);
+				if(id != null){
+					System.out.println("REEEEEEEEEEEEEEEEEEEEE");
+					if (id.intValue() == answer) {
+						scores[player] += 10;
+						System.out.println(scores[0]);
+					} else if (id.intValue() == 69) {
+						//restart
+					}
+				}
+				displayScores();
+				try{
+					Thread.sleep(2000);
+				} catch (Exception e) {
+
+				}
+				sdlManager.removeOnRPCNotificationListener(FunctionID.ON_COMMAND, this);
+				playerNumber += 1;
+				if (playerNumber < 4) {
+					clearTextFields();
+					askQuestion();
+				}
+
+			}
+		};
+		sdlManager.addOnRPCNotificationListener(FunctionID.ON_COMMAND, listener);
+		return listener;
+	}
+
+
+	private OnRPCNotificationListener askQuestion() {
+		clearTextFields();
+		setAnswerCommands();	// Init voice commands
+		String[] questionData = getRandomQuestionData();
+		String question = questionData[0];
+		String answer1 = questionData[1];
+		String answer2 = questionData[2];
+		String answer3 = questionData[3];
+		String answer4 = questionData[4];
+		String realAnswer = questionData[5];
+
+		int intAnswer = 0;
+		switch (realAnswer){
+			case("One"):
+				intAnswer = 1;
+				break;
+			case("Two"):
+				intAnswer = 2;
+				break;
+			case("Three"):
+				intAnswer = 3;
+				break;
+			case("Four"):
+				intAnswer = 4;
+				break;
+		}
+		OnRPCNotificationListener listener = setAnswerListeners(intAnswer, playerNumber);
+
+		StringBuffer buf = new StringBuffer();
+		buf.append(question);
+		buf.append(". One. ");
+		buf.append(answer1);
+		buf.append(". Two. ");
+		buf.append(answer2);
+		buf.append(". Three. ");
+		buf.append(answer3);
+		buf.append(". Four. ");
+		buf.append(answer4);
+		buf.append(".");
+		sdlManager.sendRPC(new Speak(TTSChunkFactory.createSimpleTTSChunks(buf.toString())));
+
+		sdlManager.getScreenManager().setTextField1("Player" + String.valueOf(playerNumber + 1));
+		sdlManager.getScreenManager().setTextField2(question);
+		sdlManager.getScreenManager().setTextField3("1. " + answer1 + "  2. " + answer2);
+		sdlManager.getScreenManager().setTextField4("3. " + answer3 + "  4. " + answer4);
+		sdlManager.getScreenManager().setPrimaryGraphic(new SdlArtwork(SDL_IMAGE_FILENAME, FileType.GRAPHIC_PNG, R.drawable.fordfiestalogo, true));
+		return listener;
+//		sdlManager.sendRPC(new Speak(TTSChunkFactory.createSimpleTTSChunks("Where is Ari born? One. Maryland. Two. California. Three. New York. Four. Missouri.")));
+//		sdlManager.removeOnRPCNotificationListener(FunctionID.ON_COMMAND, listener);
+	}
+
+	private void displayScores() {
+		clearTextFields();
+		sdlManager.getScreenManager().setTextField1("Player 1:" + scores[0]);
+		System.out.println("my balls was hot");
+		System.out.println(scores[0]);
+		sdlManager.getScreenManager().setTextField2("Player 2:" + scores[1]);
+		sdlManager.getScreenManager().setTextField3("Player 3:" + scores[2]);
+		sdlManager.getScreenManager().setTextField4("Player 4:" + scores[3]);
+
+	}
 	/**
 	 * Will speak a sample welcome message
 	 */
@@ -232,6 +427,8 @@ public class SdlService extends Service {
 		sdlManager.getScreenManager().beginTransaction();
 		sdlManager.getScreenManager().setTextField1(APP_NAME);
 		sdlManager.getScreenManager().setTextField2(WELCOME_SHOW);
+		sdlManager.getScreenManager().setTextField3(WELCOME_SHOW);
+		sdlManager.getScreenManager().setTextField4(WELCOME_SHOW);
 		sdlManager.getScreenManager().setPrimaryGraphic(new SdlArtwork(SDL_IMAGE_FILENAME, FileType.GRAPHIC_PNG, R.drawable.sdl, true));
 		sdlManager.getScreenManager().commit(new CompletionListener() {
 			@Override
@@ -242,7 +439,29 @@ public class SdlService extends Service {
 			}
 		});
 	}
+	private String[] getRandomQuestionData() {
+		// Index mappings
+		// 0 - question
+		// 1-4 - options
+		// 5 - answer
+		String[] questionData = new String[6];
 
+		try {
+			Random rand = new Random();
+			int index = rand.nextInt(546);
+
+			questionData[0] = (String) ((JSONObject)qAndA.get(index)).get("question");
+			questionData[1] = (String) ((JSONObject)qAndA.get(index)).get("One");
+			questionData[2] = (String) ((JSONObject)qAndA.get(index)).get("Two");
+			questionData[3] = (String) ((JSONObject)qAndA.get(index)).get("Three");
+			questionData[4] = (String) ((JSONObject)qAndA.get(index)).get("Four");
+			questionData[5] = (String) ((JSONObject)qAndA.get(index)).get("answer");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return questionData;
+	}
 	/**
 	 * Will show a sample test message on screen as well as speak a sample test message
 	 */
